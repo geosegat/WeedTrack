@@ -2,9 +2,19 @@
 
 O **WeedTrack** é um aplicativo simples e eficiente para registrar seus gastos com maconha. Ele permite que você adicione rapidamente transações, acompanhe seu histórico e veja o total gasto de forma intuitiva.
 
-<img src="https://i.imgur.com/AnfF88K.png" width="400"/>
+## 📸 **Screenshots**
 
-## 📲 Funcionalidades
+### **Tela de Login** - Escolha um nome ou apelido para acessar o app:
+
+<img src="https://i.imgur.com/UMp7oEl.png" width="300"/>
+
+### **Tela Principal (Home)** - Adicione seus gastos e acompanhe seu histórico:
+
+<img src="https://i.imgur.com/AnfF88K.png" width="300"/>
+
+---
+
+## 📲 **Funcionalidades**
 
 ✅ **Registro rápido** de valores fixos ou personalizados  
 ✅ **Histórico de transações** com exclusão  
