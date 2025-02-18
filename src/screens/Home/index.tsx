@@ -15,7 +15,10 @@ import TransactionItem from '../../components/TransactionItem';
 import {getFormattedDate} from '../../utils/getFormattedDate';
 import TotalSpent from '../../components/TotalSpent';
 import {NavigationProps} from '../../types/navigation';
-import {Filter, FilterIcon, FilterXIcon, ListFilter} from 'lucide-react-native';
+import {useUsers} from '../../hooks/useUsers';
+import {Save} from 'lucide-react-native';
+import SaveDataModal from '../../components/SaveDataModal';
+import {supabase} from '../../services/supabase';
 
 const STORAGE_KEY = '@transactions_list';
 const USERNAME_KEY = '@user_name';
@@ -26,6 +29,9 @@ const Home = ({navigation}: NavigationProps) => {
   const [valuesList, setValuesList] = useState<
     {id: string; value: number; date: string}[]
   >([]);
+  const {users} = useUsers();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [isEmailValidated, setIsEmailValidated] = useState(false);
 
   const addValueToList = (newValue: number) => {
     const newTransaction = {
@@ -33,7 +39,6 @@ const Home = ({navigation}: NavigationProps) => {
       value: newValue,
       date: getFormattedDate(),
     };
-
     setValuesList(prevList => [newTransaction, ...prevList]);
   };
 
@@ -42,9 +47,7 @@ const Home = ({navigation}: NavigationProps) => {
   };
 
   const handleSubmit = () => {
-    if (!value.trim()) {
-      return;
-    }
+    if (!value.trim()) return;
     Keyboard.dismiss();
     addValueToList(parseFloat(value));
     setValue('');
@@ -52,18 +55,12 @@ const Home = ({navigation}: NavigationProps) => {
 
   const handleEditName = async () => {
     Alert.alert('Alterar Nome', 'Deseja realmente alterar seu nome? ', [
-      {
-        text: 'Cancelar',
-        style: 'cancel',
-      },
+      {text: 'Cancelar', style: 'cancel'},
       {
         text: 'Sim',
         onPress: async () => {
           await AsyncStorage.removeItem(USERNAME_KEY);
-          navigation.reset({
-            index: 0,
-            routes: [{name: 'Login'}],
-          });
+          navigation.reset({index: 0, routes: [{name: 'Login'}]});
         },
       },
     ]);
@@ -73,9 +70,7 @@ const Home = ({navigation}: NavigationProps) => {
     const loadUserName = async () => {
       try {
         const storedName = await AsyncStorage.getItem(USERNAME_KEY);
-        if (storedName) {
-          setUserName(storedName);
-        }
+        if (storedName) setUserName(storedName);
       } catch (error) {
         console.error('Erro ao carregar nome do usuário:', error);
       }
@@ -87,9 +82,7 @@ const Home = ({navigation}: NavigationProps) => {
     const loadTransactions = async () => {
       try {
         const storedTransactions = await AsyncStorage.getItem(STORAGE_KEY);
-        if (storedTransactions) {
-          setValuesList(JSON.parse(storedTransactions));
-        }
+        if (storedTransactions) setValuesList(JSON.parse(storedTransactions));
       } catch (error) {
         console.error('Erro ao carregar transações:', error);
       }
@@ -107,6 +100,40 @@ const Home = ({navigation}: NavigationProps) => {
     };
     saveTransactions();
   }, [valuesList]);
+
+  // Calcula o total gasto
+  const getTotalSpent = () =>
+    valuesList.reduce((acc, item) => acc + item.value, 0);
+
+  // Verifica se o usuário já vinculou sua conta (tem email cadastrado na tabela "users")
+  useEffect(() => {
+    const checkUserEmailValidation = async () => {
+      const {data: sessionData, error: sessionError} =
+        await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('Erro ao pegar sessão:', sessionError);
+        return;
+      }
+      const session = sessionData?.session;
+      if (session?.user) {
+        const {data, error} = await supabase
+          .from('users')
+          .select('email')
+          .eq('id', session.user.id)
+          .single();
+        if (error) {
+          console.error('Erro ao buscar usuário:', error);
+          setIsEmailValidated(false);
+        } else {
+          setIsEmailValidated(data.email ? true : false);
+        }
+      } else {
+        setIsEmailValidated(false);
+      }
+    };
+
+    checkUserEmailValidation();
+  }, [users]);
 
   return (
     <View style={styles.container}>
@@ -135,9 +162,15 @@ const Home = ({navigation}: NavigationProps) => {
         <ButtonValue onValueSelect={addValueToList} />
       </View>
 
-      <AppText size={18} weight="500">
-        Histórico de Compras
-      </AppText>
+      <View style={styles.containerHistory}>
+        <AppText size={18} weight="500">
+          Histórico de Compras
+        </AppText>
+        <TouchableOpacity onPress={() => setModalVisible(true)}>
+          {/* Ícone fica verde se a conta estiver vinculada, laranja se não */}
+          <Save color={isEmailValidated ? 'green' : 'orange'} />
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         data={valuesList}
@@ -150,6 +183,16 @@ const Home = ({navigation}: NavigationProps) => {
             onDelete={() => handleDelete(item.id)}
           />
         )}
+      />
+
+      <SaveDataModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        totalSpent={getTotalSpent()}
+        onUserAuthenticated={email => {
+          console.log('Usuário autenticado:', email);
+          setIsEmailValidated(true);
+        }}
       />
     </View>
   );
@@ -164,23 +207,11 @@ const styles = StyleSheet.create({
     padding: 25,
     gap: 24,
   },
-  containerExtract: {
-    padding: 15,
-    backgroundColor: '#232121',
-    borderRadius: 8,
-    gap: 4,
+  buttonEditName: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  buttonOcultar: {
-    borderRadius: 25,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: 'gray',
-  },
-  containerTextExtract: {gap: 4},
   styleInput: {
     color: 'white',
     padding: 12,
@@ -189,9 +220,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'gray',
   },
-  buttonEditName: {
+  containerHistory: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
 });
