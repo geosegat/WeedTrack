@@ -54,7 +54,7 @@ const Home = ({navigation}: NavigationProps) => {
   };
 
   const handleEditName = async () => {
-    Alert.alert('Alterar Nome', 'Deseja realmente alterar seu ? ', [
+    Alert.alert('Alterar Nome', 'Deseja realmente alterar seu nome? ', [
       {text: 'Cancelar', style: 'cancel'},
       {
         text: 'Sim',
